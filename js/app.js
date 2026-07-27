@@ -121,6 +121,7 @@ $id('btn-start-workout').addEventListener('click', () => {
   VoiceEngine.unlock();
   BeepEngine.unlock();
   WakeLockManager.request();
+  AmbientKeepAlive.start();
   startWorkoutRun();
 });
 
@@ -208,12 +209,14 @@ $id('btn-end').addEventListener('click', () => {
     State.engine.end();
     WakeLockManager.release();
     VoiceEngine.cancelAll();
+    AmbientKeepAlive.stop();
     showScreen('screen-home');
   });
 });
 
 function onWorkoutComplete() {
   WakeLockManager.release();
+  AmbientKeepAlive.stop();
   const plan = State.plan;
   HistoryStore.save({
     date: new Date().toISOString(),
