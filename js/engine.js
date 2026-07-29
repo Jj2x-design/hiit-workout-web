@@ -13,52 +13,54 @@ function buildSegmentEvents(seg) {
   const push = (atSec, fire) => events.push({ atSec: Math.max(0, atSec), fired: false, fire });
 
   if (seg.type === 'prep' || seg.type === 'rest') {
-    const ex = EXERCISES[seg.exerciseId];
-    const leadLabel = seg.finalExercise ? `Final exercise: ${ex.name}. Make it count.`
-      : seg.isFirstOfWorkout ? `First up: ${ex.name}.`
-      : `Next up: ${ex.name}.`;
+    const exId = seg.exerciseId;
+    const leadKey = seg.finalExercise ? `lead_final_${exId}`
+      : seg.isFirstOfWorkout ? `lead_first_${exId}`
+      : `lead_next_${exId}`;
+    const bodyKey = seg.fullExplanation ? `full_${exId}` : `brief_${exId}`;
 
-    push(0, () => { BeepEngine.beep(); VoiceEngine.speak(seg.isFirstOfWorkout ? 'Get ready.' : 'Rest.'); });
+    push(0, () => { BeepEngine.beep(); ClipVoice.play(seg.isFirstOfWorkout ? 'get_ready' : 'rest'); });
 
     if (seg.fullExplanation) {
-      push(MIN_REST_LEAD, () => VoiceEngine.speak(`${leadLabel} ${ex.fullScript}`));
+      push(MIN_REST_LEAD, () => ClipVoice.playSequence([leadKey, bodyKey]));
     } else {
       const mid = Math.max(MIN_REST_LEAD, Math.floor(d / 2));
-      push(mid, () => VoiceEngine.speak(`${leadLabel} ${ex.briefCue}`));
+      push(mid, () => ClipVoice.playSequence([leadKey, bodyKey]));
     }
 
-    push(d - 3, () => VoiceEngine.speak('Three'));
-    push(d - 2, () => VoiceEngine.speak('Two'));
-    push(d - 1, () => VoiceEngine.speak('One'));
+    push(d - 3, () => ClipVoice.play('count_three'));
+    push(d - 2, () => ClipVoice.play('count_two'));
+    push(d - 1, () => ClipVoice.play('count_one'));
   }
 
   if (seg.type === 'work') {
-    push(0, () => { BeepEngine.beep(); VoiceEngine.speak('Go!'); });
-    if (d >= 30) push(Math.floor(d / 2), () => VoiceEngine.speak('Halfway.'));
-    if (d > 5) push(d - 5, () => VoiceEngine.speak('Five seconds.'));
+    push(0, () => { BeepEngine.beep(); ClipVoice.play('go'); });
+    if (d >= 30) push(Math.floor(d / 2), () => ClipVoice.play('halfway'));
+    if (d > 5) push(d - 5, () => ClipVoice.play('five_seconds'));
   }
 
   if (seg.type === 'roundbreak') {
-    push(0, () => { BeepEngine.beep(); VoiceEngine.speak('Round complete. Sixty seconds rest. Grab some water.'); });
-    push(30, () => VoiceEngine.speak('Thirty seconds.'));
-    push(d - 10, () => VoiceEngine.speak(`Next round starting soon. First up: ${EXERCISES[seg.nextExerciseId].name}.`));
-    push(d - 3, () => VoiceEngine.speak('Three'));
-    push(d - 2, () => VoiceEngine.speak('Two'));
-    push(d - 1, () => VoiceEngine.speak('One'));
+    push(0, () => { BeepEngine.beep(); ClipVoice.play('round_complete'); });
+    push(30, () => ClipVoice.play('thirty_seconds'));
+    push(d - 10, () => ClipVoice.playSequence(['next_round_soon', `lead_first_${seg.nextExerciseId}`]));
+    push(d - 3, () => ClipVoice.play('count_three'));
+    push(d - 2, () => ClipVoice.play('count_two'));
+    push(d - 1, () => ClipVoice.play('count_one'));
   }
 
   if (seg.type === 'workout_end') {
-    push(0, () => { BeepEngine.tripleBeep(); VoiceEngine.speak('Workout complete. Time to stretch.'); });
+    push(0, () => { BeepEngine.tripleBeep(); ClipVoice.play('workout_complete'); });
   }
 
   if (seg.type === 'stretch') {
-    push(0, () => { BeepEngine.beep(); VoiceEngine.speak(`${seg.stretch.name}. ${seg.stretch.script}`); });
-    push(20, () => VoiceEngine.speak('Relax into it. Breathe.'));
-    push(25, () => VoiceEngine.speak('Five seconds.'));
+    const sid = seg.stretch.id;
+    push(0, () => { BeepEngine.beep(); ClipVoice.playSequence([`stretch_name_${sid}`, `stretch_script_${sid}`]); });
+    push(20, () => ClipVoice.play('relax_breathe'));
+    push(25, () => ClipVoice.play('five_seconds'));
   }
 
   if (seg.type === 'stretch_end') {
-    push(0, () => VoiceEngine.speak('Stretching complete. Well done today.'));
+    push(0, () => ClipVoice.play('stretching_complete'));
   }
 
   return events;
@@ -72,9 +74,9 @@ function buildTimeline(plan) {
 
   function restDurationFor(exerciseId, fullExplanation) {
     if (!fullExplanation) return restSec;
-    const ex = EXERCISES[exerciseId];
-    const leadLabel = `Next up: ${ex.name}.`; // length is close enough to "First up"/"Final exercise" variants
-    const speechSec = VoiceEngine.estimateSpeechSeconds(`${leadLabel} ${ex.fullScript}`);
+    // Exact durations from the pre-rendered clips (lead_next used as a
+    // close-enough proxy for the lead-in length across all three variants).
+    const speechSec = ClipVoice.clipDuration(`lead_next_${exerciseId}`) + ClipVoice.clipDuration(`full_${exerciseId}`);
     const needed = Math.ceil(MIN_REST_LEAD + speechSec + MIN_REST_TAIL + COUNTDOWN_SEC);
     return Math.max(restSec, needed);
   }
@@ -198,7 +200,7 @@ class WorkoutEngine {
   pause() {
     if (this.pausedAt) return;
     this.pausedAt = Date.now();
-    VoiceEngine.cancelAll();
+    ClipVoice.cancelAll();
   }
 
   resume() {
@@ -217,7 +219,7 @@ class WorkoutEngine {
   end() {
     this.ended = true;
     if (this.rafId) cancelAnimationFrame(this.rafId);
-    VoiceEngine.cancelAll();
+    ClipVoice.cancelAll();
   }
 
   _finish() {

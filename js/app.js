@@ -98,6 +98,19 @@ function renderCategoryScreen() {
 }
 
 /* ---------------- PRE-WORKOUT ---------------- */
+function clipKeysForPlan(plan) {
+  const keys = [];
+  plan.exercises.forEach(exId => {
+    keys.push(`lead_first_${exId}`, `lead_next_${exId}`, `lead_final_${exId}`, `full_${exId}`, `brief_${exId}`);
+  });
+  getStretchSequence(plan.category).forEach(st => {
+    keys.push(`stretch_name_${st.id}`, `stretch_script_${st.id}`);
+  });
+  keys.push('get_ready', 'rest', 'go', 'halfway', 'five_seconds', 'count_three', 'count_two', 'count_one',
+    'round_complete', 'thirty_seconds', 'next_round_soon', 'workout_complete', 'relax_breathe', 'stretching_complete');
+  return keys;
+}
+
 function renderPreworkoutScreen() {
   const plan = State.plan;
   const exactMin = Math.round(exactWorkoutSeconds(plan) / 60);
@@ -114,14 +127,13 @@ function renderPreworkoutScreen() {
     row.innerHTML = `<div class="circuit-ill">${illustrationSVG(exId)}</div><div class="circuit-name">${ex.name}</div>`;
     list.appendChild(row);
   });
+  ClipVoice.preload(clipKeysForPlan(plan));
 }
 
 $id('btn-start-workout').addEventListener('click', () => {
-  // User gesture: unlock speech + audio context, then acquire wake lock.
-  VoiceEngine.unlock();
-  BeepEngine.unlock();
+  // User gesture: unlock the shared audio context, then acquire wake lock.
+  AudioEngine.unlock();
   WakeLockManager.request();
-  AmbientKeepAlive.start();
   startWorkoutRun();
 });
 
@@ -208,15 +220,13 @@ $id('btn-end').addEventListener('click', () => {
   showConfirm('End this workout? Your progress will not be saved.', () => {
     State.engine.end();
     WakeLockManager.release();
-    VoiceEngine.cancelAll();
-    AmbientKeepAlive.stop();
+    ClipVoice.cancelAll();
     showScreen('screen-home');
   });
 });
 
 function onWorkoutComplete() {
   WakeLockManager.release();
-  AmbientKeepAlive.stop();
   const plan = State.plan;
   HistoryStore.save({
     date: new Date().toISOString(),
@@ -283,7 +293,7 @@ $id('btn-clear-history').addEventListener('click', () => {
 
 /* ---------------- SETTINGS ---------------- */
 function renderSettingsScreen() {
-  const v = VoiceEngine.getVolume();
+  const v = ClipVoice.getVolume();
   $id('volume-slider').value = v;
   $id('volume-value').textContent = `${Math.round(v * 100)}%`;
 }
@@ -292,13 +302,13 @@ $id('btn-settings').addEventListener('click', () => { renderSettingsScreen(); sh
 
 $id('volume-slider').addEventListener('input', (e) => {
   const v = parseFloat(e.target.value);
-  VoiceEngine.setVolume(v);
+  ClipVoice.setVolume(v);
   $id('volume-value').textContent = `${Math.round(v * 100)}%`;
 });
 
 $id('btn-voice-test').addEventListener('click', () => {
-  VoiceEngine.unlock();
-  VoiceEngine.speak('This is your coaching voice at the current volume.');
+  AudioEngine.unlock();
+  ClipVoice.play('voice_test');
 });
 
 /* ---------------- BACK BUTTONS / MODAL ---------------- */

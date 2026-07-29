@@ -1,10 +1,16 @@
-const CACHE_NAME = 'hiit-workout-v1';
+const CACHE_NAME = 'hiit-workout-v2';
+
+// AUDIO_CLIPS comes from js/audioClips.js so the cache list stays in sync
+// automatically whenever clips are regenerated.
+importScripts('./js/audioClips.js');
+
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './css/style.css',
   './js/data.js',
+  './js/audioClips.js',
   './js/illustrations.js',
   './js/audio.js',
   './js/engine.js',
@@ -16,6 +22,7 @@ const ASSETS = [
   './icons/apple-touch-icon.png',
   './icons/favicon-32.png',
   './icons/favicon-16.png',
+  ...Object.values(AUDIO_CLIPS).map((c) => './' + c.file),
 ];
 
 self.addEventListener('install', (event) => {
