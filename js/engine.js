@@ -183,7 +183,10 @@ class WorkoutEngine {
 
     if (!this.pausedAt) {
       seg.events.forEach(e => {
-        if (!e.fired && elapsed >= e.atSec) { e.fired = true; e.fire(); }
+        if (!e.fired && elapsed >= e.atSec) {
+          e.fired = true;
+          try { e.fire(); } catch (err) { console.error('announcement failed', err); }
+        }
       });
     }
 

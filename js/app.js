@@ -337,6 +337,18 @@ renderHome();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    // updateViaCache: 'none' forces the browser to always re-check sw.js
+    // itself over the network (bypassing HTTP cache) so a new deployment
+    // is never masked by a stale cached copy of the worker script.
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+      .then(reg => reg.update().catch(() => {}))
+      .catch(() => {});
+  });
+
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloading) return;
+    reloading = true;
+    location.reload();
   });
 }
